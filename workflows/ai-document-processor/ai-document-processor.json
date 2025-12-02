@@ -1,0 +1,483 @@
+{
+  "name": "AI Document Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1xaZdv25NF8Qa7vj3EV_96Cr4KW1Gwtt8sp8lVHwD05A",
+          "mode": "list",
+          "cachedResultName": "Documents",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xaZdv25NF8Qa7vj3EV_96Cr4KW1Gwtt8sp8lVHwD05A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xaZdv25NF8Qa7vj3EV_96Cr4KW1Gwtt8sp8lVHwD05A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.title }}",
+            "OriginalLength": "={{ $json.originalLength }}",
+            "Timestamp": "={{ $json.timestamp }}",
+            "Summary": "={{ $json.summary }}",
+            "Category": "={{ $json.category }}",
+            "KeyPoints": "={{ Array.isArray($json[\"keyPoints\"])\n    ? $json[\"keyPoints\"].map(p => \"• \" + p).join(\"\\n\")\n    : \"\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "KeyPoints",
+              "displayName": "KeyPoints",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "OriginalLength",
+              "displayName": "OriginalLength",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        256
+      ],
+      "id": "ab1adf03-19d8-4c22-b5d6-8fc29d571350",
+      "name": "Store Analysis",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LGQ6Uu0fRKo7IpdW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You will analyze a document and respond ONLY with valid JSON.\n\nGiven the following text, produce an object with:\n- \"summary\": a short summary (3–5 sentences, string)\n- \"keyPoints\": an array of 3–7 short bullet points (array of strings)\n- \"category\": one of [\"Sales\", \"Support\", \"Internal\", \"Other\"] (string)\n\nText:\nTitle: {{$json[\"title\"]}}\nContent: {{$json[\"content\"]}}\n\nRespond ONLY with JSON. Do NOT include backticks, markdown, or any explanation.\nExample of the expected format:\n{\n  \"summary\": \"...\",\n  \"keyPoints\": [\"...\", \"...\"],\n  \"category\": \"Sales\"\n}\n"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        0
+      ],
+      "id": "ca10877c-2dbe-4435-8244-69719613f812",
+      "name": "Analyze Document",
+      "credentials": {
+        "openAiApi": {
+          "id": "InhgJnHeOc3d3Hh1",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-doc/recive",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -432,
+        0
+      ],
+      "id": "5f4c729c-6fa5-4a93-9958-0d86169f3372",
+      "name": "Webhook",
+      "webhookId": "1b5c9c89-c0eb-4450-9ad7-e56cdebfbdff"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const data = item.json.body;\n\n  const title = (data.title || 'Untitled document').trim();\n\n  let content = '';\n  if (data.content) {\n    content = String(data.content).trim();\n  } else if (data.text) {\n    content = String(data.text).trim();\n  } else {\n    content = '';\n  }\n\n  return {\n    json: {\n      title,\n      content,\n      originalLength: content.length,\n      timestamp: new Date().toISOString()\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "20fd4227-6ea2-4bb6-96c4-20ebbb564790",
+      "name": "Normalize Document"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const aiData = item.json;\n\n  // 1) Recupero il testo JSON restituito dall'AI\n  let rawText = '';\n\n  if (\n    Array.isArray(aiData.output) &&\n    aiData.output[0] &&\n    Array.isArray(aiData.output[0].content) &&\n    aiData.output[0].content[0] &&\n    typeof aiData.output[0].content[0].text === 'string'\n  ) {\n    rawText = aiData.output[0].content[0].text;\n  }\n\n  // 2) Provo a fare il parse del JSON\n  let parsed = {\n    summary: '',\n    keyPoints: [],\n    category: 'Other',\n  };\n\n  try {\n    const obj = JSON.parse(rawText);\n    parsed.summary = obj.summary || '';\n    parsed.keyPoints = Array.isArray(obj.keyPoints) ? obj.keyPoints : [];\n    parsed.category = obj.category || 'Other';\n  } catch (e) {\n    // se l'AI sgarra il formato, non esplodere tutto\n    parsed.summary = rawText;\n    parsed.keyPoints = [];\n    parsed.category = 'Other';\n  }\n\n  // 3) Recupero i dati originali dal nodo \"Normalize Document\"\n  const original = $node['Normalize Document'].json;\n\n  return {\n    json: {\n      title: original.title || 'Untitled document',\n      originalLength: original.originalLength ?? null,\n      timestamp: original.timestamp || null,\n      summary: parsed.summary,\n      keyPoints: parsed.keyPoints,\n      category: parsed.category,\n    },\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        0
+      ],
+      "id": "a0be2c23-c8e6-47d3-b241-cdc20a7c4fe7",
+      "name": "Format Response"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        896,
+        256
+      ],
+      "id": "a1d8c37e-39e8-4b6c-87d5-90c48a0d0241",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "Sales",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e74f140a-2939-46a3-a878-11c2aa871548"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b98778f6-0c44-4275-9836-483b527dc40f",
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "Support",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "770d5fa1-cdaa-4472-9d0a-328f063606d7",
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "Internal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        464,
+        -16
+      ],
+      "id": "f4ef23f2-78eb-4cb6-9aba-70e0bc768a04",
+      "name": "Switch"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -224
+      ],
+      "id": "a7114a26-7908-4007-a877-fa052a0e8779",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        896,
+        0
+      ],
+      "id": "135ad2b7-275b-422f-bb06-500bb1f68ccb",
+      "name": "No Operation, do nothing2"
+    },
+    {
+      "parameters": {
+        "chatId": "8039873794",
+        "text": "=<b>🛟 [Support] Document analyzed</b>\n\n<b>Title:</b> {{ $json[\"title\"] || \"Untitled document\" }}\n<b>Category:</b> {{ $json[\"category\"] || \"Support\" }}\n\n<b>Summary:</b>\n{{ $json[\"summary\"] || \"No summary available.\" }}\n\n<b>Key points:</b>\n{{ Array.isArray($json[\"keyPoints\"]) && $json[\"keyPoints\"].length\n  ? $json[\"keyPoints\"].map(p => \"• \" + p).join(\"\\n\")\n  : \"• No key points extracted.\" }}\n\n<b>Meta:</b>\n• Length: {{ $json[\"originalLength\"] || 0 }} chars\n• Analyzed at: {{ $json[\"timestamp\"] || \"\" }}\n",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        0
+      ],
+      "id": "da251d99-b645-4b8f-ba0b-3e86f3f90628",
+      "name": "Support Message",
+      "webhookId": "a6681425-f548-4447-b900-a819534f5634",
+      "credentials": {
+        "telegramApi": {
+          "id": "efSHXns7jbqmTluR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "musitellidavideluigi2003@gmail.com",
+        "subject": "=[Sales] AI Analysis - {{ $json.title }}",
+        "message": "=<html>\n  <head>\n    <meta charset=\"UTF-8\" />\n    <title>AI Document Analysis</title>\n  </head>\n  <body style=\"margin:0; padding:0; background-color:#f4f5f7; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\">\n    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"padding:32px 0;\">\n      <tr>\n        <td align=\"center\">\n          <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:white; border-radius:16px; overflow:hidden; box-shadow:0 12px 30px rgba(15, 23, 42, 0.15);\">\n            <!-- Header -->\n            <tr>\n              <td style=\"padding:24px 28px; background:linear-gradient(135deg, #1f2937, #111827); color:#f9fafb;\">\n                <div style=\"font-size:12px; text-transform:uppercase; letter-spacing:0.12em; opacity:0.8; margin-bottom:4px;\">\n                  AI Document Processor · n8n\n                </div>\n                <div style=\"font-size:20px; font-weight:600; line-height:1.4;\">\n                  {{ $json[\"title\"] || \"Untitled document\" }}\n                </div>\n                <div style=\"margin-top:10px; font-size:12px; color:#d1d5db;\">\n                  <span style=\"margin-right:12px;\">\n                    Category:\n                    <span style=\"display:inline-block; padding:2px 8px; border-radius:999px; background-color:#111827; border:1px solid #4b5563; font-size:11px; font-weight:500; color:#e5e7eb;\">\n                      {{ $json[\"category\"] || \"Other\" }}\n                    </span>\n                  </span>\n                  <span>\n                    Analyzed at:\n                    <strong>{{ $json[\"timestamp\"] || \"\" }}</strong>\n                  </span>\n                </div>\n              </td>\n            </tr>\n\n            <!-- Summary -->\n            <tr>\n              <td style=\"padding:24px 28px 0 28px;\">\n                <div style=\"font-size:13px; text-transform:uppercase; letter-spacing:0.16em; color:#6b7280; margin-bottom:8px;\">\n                  Summary\n                </div>\n                <div style=\"font-size:14px; line-height:1.7; color:#111827; background-color:#f9fafb; border-radius:12px; padding:14px 16px; border:1px solid #e5e7eb;\">\n                  {{ $json[\"summary\"] || \"No summary available.\" }}\n                </div>\n              </td>\n            </tr>\n\n            <!-- Key points -->\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        656,
+        -224
+      ],
+      "id": "6b88fd10-d1f3-4cd1-823b-6e65b479e431",
+      "name": "Notify Sales",
+      "webhookId": "da252e9b-3ba1-4832-b3e9-6d28d662736c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8auoCay1Fz4xa5r8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## HTTP API → AI analysis → JSON parse → category routing → email / Telegram / Sheets",
+        "height": 80,
+        "width": 1008
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -208
+      ],
+      "id": "7f954c1a-8494-4817-a328-732c9f7cb2ec",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Analyze Document": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Document": {
+      "main": [
+        [
+          {
+            "node": "Analyze Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Analysis": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Notify Sales",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Support Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Support Message": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Sales": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ea98160e-7357-496c-b084-ca721fbe22ec",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7fbf8787f5e12ab0c380c144a4110bf476b28a502892aba090a04fccf3c49d3e"
+  },
+  "id": "BcrIgjy8Q93jCnZD",
+  "tags": []
+}
