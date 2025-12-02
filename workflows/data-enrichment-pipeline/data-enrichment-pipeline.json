@@ -1,0 +1,305 @@
+{
+  "name": "Data Enrichment Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "fbf844bb-8c1b-46c0-b8d2-598c50cc68dd",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1kl-J3Bkn93lHjz3M2VVHUT1J67_5T0wFA51C4Jm737I",
+          "mode": "list",
+          "cachedResultName": "Store Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kl-J3Bkn93lHjz3M2VVHUT1J67_5T0wFA51C4Jm737I/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 276959882,
+          "mode": "list",
+          "cachedResultName": "RawLeads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kl-J3Bkn93lHjz3M2VVHUT1J67_5T0wFA51C4Jm737I/edit#gid=276959882"
+        },
+        "combineFilters": "AND",
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A1:D1000"
+            }
+          }
+        }
+      },
+      "id": "ac2adb8a-8eba-42d0-9ee3-29d90c77526c",
+      "name": "Get Raw Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        -528,
+        -16
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LGQ6Uu0fRKo7IpdW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1kl-J3Bkn93lHjz3M2VVHUT1J67_5T0wFA51C4Jm737I",
+          "mode": "list",
+          "cachedResultName": "Store Enriched Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kl-J3Bkn93lHjz3M2VVHUT1J67_5T0wFA51C4Jm737I/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "EnrichedLeads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kl-J3Bkn93lHjz3M2VVHUT1J67_5T0wFA51C4Jm737I/edit#gid=0"
+        },
+        "dataMode": "autoMapInputData",
+        "options": {}
+      },
+      "id": "f209d1d1-38bd-4f51-9505-c787ecc4b530",
+      "name": "Store Enriched Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        160,
+        -176
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LGQ6Uu0fRKo7IpdW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "Email",
+              "value": "={{$json[\"email\"]}}"
+            },
+            {
+              "name": "Name",
+              "value": "={{$json[\"name\"]}}"
+            },
+            {
+              "name": "Company",
+              "value": "={{$json[\"company\"]}}"
+            },
+            {
+              "name": "Country",
+              "value": "={{$json[\"country\"]}}"
+            },
+            {
+              "name": "Score",
+              "value": "={{$json[\"enrichment\"][\"score\"]}}"
+            },
+            {
+              "name": "Segment",
+              "value": "={{$json[\"enrichment\"][\"segment\"]}}"
+            },
+            {
+              "name": "EnrichedAt",
+              "value": "={{$json[\"enrichment\"][\"enrichedAt\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9aa904ac-7f93-48a0-986a-2f5793e1327a",
+      "name": "Map Fields for Sheet",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "musitellidavideluigi2003@gmail.com",
+        "subject": "=[Enrichment] Lead scoring summary – {{ $json[\"totalEnriched\"] || 0 }} records",
+        "message": "=<html>\n  <head>\n    <meta charset=\"UTF-8\" />\n    <title>Data Enrichment Summary</title>\n  </head>\n  <body style=\"margin:0; padding:0; background-color:#f4f5f7; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\">\n    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"padding:32px 0;\">\n      <tr>\n        <td align=\"center\">\n          <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 12px 30px rgba(15, 23, 42, 0.15);\">\n            \n            <!-- Header -->\n            <tr>\n              <td style=\"padding:24px 28px; background:linear-gradient(135deg,#111827,#020617); color:#f9fafb;\">\n                <div style=\"font-size:11px; text-transform:uppercase; letter-spacing:0.16em; opacity:0.75; margin-bottom:4px;\">\n                  n8n · Data Enrichment Pipeline\n                </div>\n                <div style=\"font-size:20px; font-weight:600; line-height:1.4;\">\n                  Enrichment run summary\n                </div>\n                <div style=\"margin-top:10px; font-size:12px; color:#d1d5db;\">\n                  Executed at <strong>{{ $json[\"runAt\"] || \"\" }}</strong>\n                </div>\n              </td>\n            </tr>\n\n            <!-- KPI row -->\n            <tr>\n              <td style=\"padding:20px 28px 8px 28px;\">\n                <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;\">\n                  <tr>\n                    <td style=\"width:33%; padding:8px;\">\n                      <div style=\"background:#f9fafb; border-radius:12px; padding:12px 14px; border:1px solid #e5e7eb;\">\n                        <div style=\"font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; margin-bottom:4px;\">\n                          Total enriched\n                        </div>\n                        <div style=\"font-size:22px; font-weight:600; color:#111827;\">\n                          {{ $json[\"totalEnriched\"] || 0 }}\n                        </div>\n                      </div>\n                    </td>\n                    <td style=\"width:33%; padding:8px;\">\n                      <div style=\"background:#f9fafb; border-radius:12px; padding:12px 14px; border:1px solid #e5e7eb;\">\n                        <div style=\"font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; margin-bottom:4px;\">\n                          Avg. score\n                        </div>\n                        <div style=\"font-size:22px; font-weight:600; color:#111827;\">\n                          {{ $json[\"avgScore\"] || 0 }}\n                        </div>\n                      </div>\n                    </td>\n                    <td style=\"width:33%; padding:8px;\">\n                      <div style=\"background:#f9fafb; border-radius:12px; padding:12px 14px; border:1px solid #e5e7eb;\">\n                        <div style=\"font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; margin-bottom:4px;\">\n                          Segments A/B/C\n                        </div>\n                        <div style=\"font-size:14px; font-weight:500; color:#111827; line-height:1.6;\">\n                          A: {{ $json[\"segmentA\"] || 0 }}<br/>\n                          B: {{ $json[\"segmentB\"] || 0 }}<br/>\n                          C: {{ $json[\"segmentC\"] || 0 }}\n                        </div>\n                      </div>\n                    </td>\n                  </tr>\n                </table>\n              </td>\n            </tr>\n\n            <!-- Detail block -->\n            <tr>\n              <td style=\"padding:8px 28px 20px 28px;\">\n                <div style=\"font-size:12px; text-transform:uppercase; letter-spacing:0.16em; color:#9ca3af; margin-bottom:6px;\">\n                  Notes\n                </div>\n                <div style=\"background:#f9fafb; border-radius:12px; padding:12px 14px; border:1px dashed #e5e7eb; font-size:13px; color:#4b5563; line-height:1.7;\">\n                  This enrichment run processed <strong>{{ $json[\"totalEnriched\"] || 0 }}</strong> lead(s)\n                  and assigned them to scoring segments A/B/C.<br/>\n                  Use this summary to quickly review lead quality and distribution before the next campaign.\n                </div>\n              </td>\n            </tr>\n\n            <!-- Footer -->\n            <tr>\n              <td style=\"padding:14px 28px 18px 28px; background:#f9fafb; border-top:1px solid #e5e7eb; font-size:11px; color:#6b7280; text-align:center;\">\n                This email was generated automatically by your n8n Data Enrichment workflow.<br/>\n                You can adjust score rules and segments directly in the Function node.\n              </td>\n            </tr>\n\n          </table>\n        </td>\n      </tr>\n    </table>\n  </body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        160,
+        112
+      ],
+      "id": "9b7eb2e5-861d-47de-875a-b6f06839f355",
+      "name": "Send a message",
+      "webhookId": "466670a5-7d6b-499e-b5f5-1c91c21e1ba3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8auoCay1Fz4xa5r8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let total = items.length;\nlet sumScore = 0;\nlet countA = 0;\nlet countB = 0;\nlet countC = 0;\n\nfor (const item of items) {\n  const e = item.json.enrichment || {};\n  const score = Number(e.score) || 0;\n  sumScore += score;\n\n  if (e.segment === 'A') countA++;\n  else if (e.segment === 'B') countB++;\n  else if (e.segment === 'C') countC++;\n}\n\nconst avgScore = total > 0 ? Math.round((sumScore / total) * 10) / 10 : 0;\n\nreturn [\n  {\n    json: {\n      totalEnriched: total,\n      avgScore,\n      segmentA: countA,\n      segmentB: countB,\n      segmentC: countC,\n      runAt: new Date().toISOString(),\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        112
+      ],
+      "id": "8dcc2606-a3eb-4b17-acad-2be4ce9efa78",
+      "name": "Build Summary"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        368,
+        112
+      ],
+      "id": "b5558ffa-2d08-4091-bf27-a6901a10878d",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        368,
+        -176
+      ],
+      "id": "d30a8a67-67a3-4e2c-8fc1-cb19b3fec773",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const data = item.json;\n\n  const email = (data.Email || data.email || \"\").trim();\n  const name = (data.Name || data.name || \"\").trim();\n  const company = (data.Company || data.company || \"\").trim();\n  const country = (data.Country || data.country || \"Unknown\").trim();\n\n  // Fake enrichment logic\n  const score = Math.floor(Math.random() * 41) + 60; // 60–100\n  const segment =\n    score >= 90 ? \"A\" :\n    score >= 75 ? \"B\" :\n    \"C\";\n\n  return {\n    json: {\n      email,\n      name,\n      company,\n      country,\n      originalRow: data,\n      enrichment: {\n        score,\n        segment,\n        enrichedAt: new Date().toISOString(),\n      },\n    },\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        -16
+      ],
+      "id": "dbc083f3-5fc7-4133-9a00-d7895b29cf8a",
+      "name": "Enrich Leads"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Get Raw Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Fields for Sheet": {
+      "main": [
+        [
+          {
+            "node": "Store Enriched Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Raw Leads": {
+      "main": [
+        [
+          {
+            "node": "Enrich Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Enriched Leads": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich Leads": {
+      "main": [
+        [
+          {
+            "node": "Map Fields for Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2e6ee3d1-462d-4cd3-be42-d8f814d65bf0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7fbf8787f5e12ab0c380c144a4110bf476b28a502892aba090a04fccf3c49d3e"
+  },
+  "id": "FKOZL7Ua0ZxsppUJ",
+  "tags": []
+}
