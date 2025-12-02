@@ -37,8 +37,3 @@ Each workflow folder contains:
 - `*.json` → n8n export
 - `README.md` → explanation, inputs/outputs, business use case
 - `screenshots/` → n8n canvas + example results
-
-This portfolio is used as a reference for:
-- Fiverr clients
-- LinkedIn case studies
-- future automation projects
