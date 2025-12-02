@@ -1,0 +1,238 @@
+{
+  "name": "Lead Intake & Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "17fe5310-36da-4805-9b22-76d66d1a23bd",
+        "options": {
+          "rawBody": false,
+          "responseData": "{ \"status\": \"ok\", \"message\": \"Lead received\" }"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -288,
+        -16
+      ],
+      "id": "5e6c7828-cbf6-4a81-8a3d-df387b5f64a4",
+      "name": "Receive Lead",
+      "webhookId": "17fe5310-36da-4805-9b22-76d66d1a23bd"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const data = item.json.body;\n\n  const name = (data.name || '').trim();\n  const email = (data.email || '').trim().toLowerCase();\n  const source = (data.source || 'unknown').trim();\n  const message = (data.message || '').trim();\n\n  const timestamp = new Date().toISOString();\n\n  return {\n    json: {\n      timestamp,\n      name,\n      email,\n      source,\n      message\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -16
+      ],
+      "id": "ef8827fe-0950-403b-a148-3d1cccdf85bd",
+      "name": "Normalize Lead"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "19Mrw_tYSC3oqK6Bg9HsngFUeVRpE2xQeWi1AXtrCK7Y",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Mrw_tYSC3oqK6Bg9HsngFUeVRpE2xQeWi1AXtrCK7Y/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Foglio1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Mrw_tYSC3oqK6Bg9HsngFUeVRpE2xQeWi1AXtrCK7Y/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.timestamp }}",
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Source": "={{ $json.source }}",
+            "Message": "={{ $json.message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        128,
+        -16
+      ],
+      "id": "c4b086cb-1dbf-46ad-9725-993ff8850e47",
+      "name": "Store Lead in Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LGQ6Uu0fRKo7IpdW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "musitellidavideluigi2003@gmail.com",
+        "subject": "=New lead from {{ $json.Source }} – {{ $json.Name }}\n",
+        "message": "=New lead received:\nName: {{$json.Name}} \nEmail: {{$json.Email}}\nSource: {{$json.Source}}\nMessage: {{$json.Message}}\nTimestamp: {{$json.Timestamp}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        336,
+        -16
+      ],
+      "id": "e0eceabb-4e15-45a2-9abf-4c83f7c24422",
+      "name": "Notify Me",
+      "webhookId": "d95b1821-a8a6-4d98-886e-30bfffe72cf5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8auoCay1Fz4xa5r8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Webhook → Validate & normalize → Store in sheet → Notify via email",
+        "height": 80,
+        "width": 496
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -128
+      ],
+      "id": "d71c8753-8e10-4434-a202-6430518b49d4",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "36aaf79d-ecde-4000-b0c8-193f04baf5e4",
+      "name": "No Operation, do nothing"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Lead": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead": {
+      "main": [
+        [
+          {
+            "node": "Store Lead in Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Lead in Sheet": {
+      "main": [
+        [
+          {
+            "node": "Notify Me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Me": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6e0f2d77-997a-4dbd-a920-0aeb50cf30cf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7fbf8787f5e12ab0c380c144a4110bf476b28a502892aba090a04fccf3c49d3e"
+  },
+  "id": "ljlExTfVmRUbH2UR",
+  "tags": []
+}
