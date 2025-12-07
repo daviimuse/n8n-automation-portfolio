@@ -1,22 +1,359 @@
 {
-  "name": "ClientOnboardingCoach",
+  "name": "ClientOnboardingCoach_v2",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "client-onboarding-coach/send-request",
-        "responseMode": "responseNode",
-        "options": {}
+        "jsCode": "const input = $json.body;\n\nconst errors = [];\n\n// Helper per campi stringa obbligatori\nfunction requireString(fieldName) {\n  const raw = input[fieldName];\n  if (typeof raw !== 'string' || !raw.trim()) {\n    errors.push(`Missing or empty: ${fieldName}`);\n    return null;\n  }\n  return raw.trim();\n}\n\n// Campi base\nconst name = requireString('name');\nconst surname = requireString('surname');\nconst email = requireString('email');\nconst mainGoal = requireString('mainGoal');\nconst contactTimePreference = requireString('contactTimePreference');\n\n// Email minima decente\nif (email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) {\n  errors.push('Invalid email format');\n}\n\n// servicePack limitato a valori validi\nconst allowedPacks = ['1month', '3months', '6months', '6months', '12months'];\nconst servicePack = input.servicePack;\nif (!allowedPacks.includes(servicePack)) {\n  errors.push(`Invalid servicePack: ${servicePack}`);\n}\n\n// weeklyWorkouts tra 1 e 14\nconst weekly = Number(input.weeklyWorkouts);\nif (!Number.isFinite(weekly) || weekly <= 0 || weekly > 14) {\n  errors.push(`weeklyWorkouts must be between 1 and 14 (got ${input.weeklyWorkouts})`);\n}\n\n// timestamp / clientId\nconst timestamp = input.timestamp || new Date().toISOString();\nconst safeName = (name || 'unknown').toLowerCase().replace(/\\s+/g, '_');\nconst safeSurname = (surname || '').toLowerCase().replace(/\\s+/g, '_');\nconst clientId = `${timestamp.slice(0, 10)}-${safeName}_${safeSurname}`;\n\n// Se ci sono errori → item “rotto”\nif (errors.length > 0) {\n  return {\n    json: {\n      isValid: false,\n      validationErrors: errors,\n      timestamp,\n      rawPayload: input,   // mi tengo tutto l'input grezzo\n    },\n  };\n}\n\n// Se è tutto ok → item normale\nreturn {\n  json: {\n    clientId,\n    name,\n    surname,\n    email,\n    servicePack,\n    weeklyWorkouts: weekly,\n    mainGoal,\n    contactTimePreference,\n    timestamp,\n    isValid: true,\n    validationErrors: [],\n  },\n};\n"
       },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -608,
+        -336,
         336
       ],
-      "id": "879301f8-dec3-4447-a3e4-08ef94254738",
-      "name": "Webhook",
-      "webhookId": "695c1e5f-b5df-4b16-9ac4-fde5945d212f"
+      "id": "83fb54fe-c095-438d-9d65-fe15b5695739",
+      "name": "NormalizeRecivedData"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "folder",
+        "name": "={{ $('NormalizeRecivedData').item.json.clientId }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1kgUmRMA-G2feiPENaowauVHUbE6XwJgb",
+          "mode": "list",
+          "cachedResultName": "ClientOnboardingCoach",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1kgUmRMA-G2feiPENaowauVHUbE6XwJgb"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        656,
+        -400
+      ],
+      "id": "e7f9308a-e5e4-4b79-951f-a06138f949ea",
+      "name": "CreateNewFolder",
+      "credentials": {
+        "googleApi": {
+          "id": "aQ7sPDCB3XY00DVo",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fe187df0-0980-4ce8-95ae-7dba5fda3024",
+              "name": "folderId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "7add87ae-973d-4ca4-88d2-d80628f19d0f",
+              "name": "folderName",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "edbfa7da-8868-4ecb-ad92-397b7af8f6f1",
+              "name": "folderUrl",
+              "value": "=https://drive.google.com/drive/folders/{{$json[\"id\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "3db2e88d-8d39-4080-8433-88419d8d47ba",
+              "name": "mimeType",
+              "value": "={{ $json.mimeType }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        976,
+        -400
+      ],
+      "id": "873d592d-7cfa-450e-a2d0-497509c03092",
+      "name": "FixDriveFields"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g",
+          "mode": "list",
+          "cachedResultName": "Clients",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2012678717,
+          "mode": "list",
+          "cachedResultName": "InvalidData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit#gid=2012678717"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "rawPayload": "={{JSON.stringify($json[\"rawPayload\"], null, 2).trim()}}",
+            "errors": "={{$json[\"validationErrors\"].join('\\n')}}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "rawPayload",
+              "displayName": "rawPayload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "errors",
+              "displayName": "errors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        256,
+        608
+      ],
+      "id": "87833233-c938-43f4-be50-750b7061e80b",
+      "name": "SaveInvalidLead",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LGQ6Uu0fRKo7IpdW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        640,
+        768
+      ],
+      "id": "7c2d817a-c23e-4716-be13-b9783f8f7263",
+      "name": "BadEnding"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        112
+      ],
+      "id": "44a77ceb-87b8-4268-8dd1-4d98d915f43c",
+      "name": "GoodEnding"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"Invalid data.\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        416,
+        608
+      ],
+      "id": "69dc8f42-86d5-4725-9b3f-6e6b4c6e1393",
+      "name": "SendKOResponse"
+    },
+    {
+      "parameters": {
+        "chatId": "8039873794",
+        "text": "=⚠️ New onboarding failed validation\n\nErrors:\n{{$json[\"validationErrors\"].join('\\n')}}\n\nRaw payload:\n{{JSON.stringify($json[\"rawPayload\"], null, 2)}}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        768
+      ],
+      "id": "d2e30715-b207-4df0-9d58-8eb5c00861ef",
+      "name": "SendErrorMessageToCoach",
+      "webhookId": "14e7417c-2ef2-4443-af7f-ae9751f66070",
+      "credentials": {
+        "telegramApi": {
+          "id": "efSHXns7jbqmTluR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g",
+          "mode": "list",
+          "cachedResultName": "Clients",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "RawData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Email",
+              "lookupValue": "={{ $json.email }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        48,
+        128
+      ],
+      "id": "0d84f38c-2055-47aa-b81f-5d5ad2284347",
+      "name": "FindExistingClient",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LGQ6Uu0fRKo7IpdW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ok\",\n  \"message\": \"Onboarding workflow started.\",\n  \"clientId\": \"{{$json[\"ClientId\"]}}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2016,
+        -224
+      ],
+      "id": "004eac18-fbdd-4f42-bf32-d424ea39c506",
+      "name": "SendOKResponse"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('NormalizeAIResponse').item.json.email }}",
+        "subject": "={{ $json.emailIntro }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Welcome Email - Gym Coaching</title>\n  <style>\n    body {\n      margin: 0;\n      padding: 0;\n      background-color: #0d0d0f;\n      font-family: Arial, Helvetica, sans-serif;\n      color: #f5f5f5;\n    }\n    .wrapper {\n      width: 100%;\n      background-color: #0d0d0f;\n      padding: 24px 0;\n    }\n    .container {\n      max-width: 640px;\n      margin: 0 auto;\n      background: linear-gradient(135deg, #111118 0%, #151520 50%, #191924 100%);\n      border-radius: 12px;\n      border: 1px solid #262633;\n      overflow: hidden;\n    }\n    .header {\n      padding: 24px 32px 16px;\n      text-align: center;\n      border-bottom: 1px solid #262633;\n      background: radial-gradient(circle at top left, #ff7a00 0, #111118 55%);\n    }\n    .brand {\n      font-size: 22px;\n      font-weight: 700;\n      letter-spacing: 0.08em;\n      text-transform: uppercase;\n      color: #ffffff;\n    }\n    .brand span {\n      color: #ff7a00;\n    }\n    .subtitle {\n      margin-top: 8px;\n      font-size: 13px;\n      text-transform: uppercase;\n      letter-spacing: 0.18em;\n      color: #f5f5f5cc;\n    }\n    .content {\n      padding: 24px 32px 32px;\n    }\n    h1 {\n      font-size: 22px;\n      margin: 0 0 12px;\n      color: #ffffff;\n    }\n    p {\n      font-size: 14px;\n      line-height: 1.6;\n      margin: 0 0 12px;\n      color: #e0e0e0;\n    }\n    .highlight {\n      color: #ff7a00;\n      font-weight: 600;\n    }\n    .section-title {\n      margin-top: 20px;\n      font-size: 14px;\n      font-weight: 700;\n      text-transform: uppercase;\n      letter-spacing: 0.12em;\n      color: #ff7a00;\n    }\n    .info-box {\n      margin-top: 8px;\n      padding: 12px 14px;\n      border-radius: 8px;\n      background: rgba(15, 15, 24, 0.9);\n      border: 1px solid #262633;\n      font-size: 13px;\n    }\n    .info-row {\n      margin: 4px 0;\n    }\n    .info-label {\n      font-weight: 600;\n      color: #f5f5f5;\n    }\n    .info-value {\n      color: #cfcfcf;\n    }\n    .cta-wrapper {\n      margin-top: 24px;\n      text-align: center;\n    }\n    .cta-button {\n      display: inline-block;\n      padding: 12px 28px;\n      background: #ff7a00;\n      color: #0b0b10 !important;\n      text-decoration: none;\n      font-weight: 700;\n      font-size: 14px;\n      border-radius: 999px;\n      text-transform: uppercase;\n      letter-spacing: 0.14em;\n    }\n    .cta-button:hover {\n      opacity: 0.9;\n    }\n    .divider {\n      height: 1px;\n      background: #262633;\n      margin: 24px 0 16px;\n    }\n    .small {\n      font-size: 12px;\n      color: #9e9eaa;\n    }\n    .badge-row {\n      margin-top: 8px;\n      font-size: 11px;\n      letter-spacing: 0.16em;\n      text-transform: uppercase;\n      color: #bbbbc7;\n    }\n    .badge-pill {\n      display: inline-block;\n      padding: 4px 10px;\n      border-radius: 999px;\n      border: 1px solid #ff7a00;\n      color: #ff7a00;\n      font-size: 11px;\n      margin-right: 6px;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"wrapper\">\n    <div class=\"container\">\n      <!-- HEADER -->\n      <div class=\"header\">\n        <div class=\"brand\">\n          <span>Iron</span>Flow Coaching\n        </div>\n        <div class=\"subtitle\">\n          Strength · Discipline · Consistency\n        </div>\n      </div>\n\n      <!-- CONTENT -->\n      <div class=\"content\">\n        <!-- Heading & intro fully controllati da BuildNotificationPayload -->\n        <h1> {{ $json.emailIntro }}</h1>\n\n        <p>\n          You’ve chosen the\n          <span class=\"highlight\">\n            {{ $json.servicePackLabel || $json.servicePack }}\n          </span>\n          package with\n          <span class=\"highlight\">{{ $json.weeklyWorkouts }} workouts per week</span>.\n        </p>\n\n        <!-- CLIENT INFO -->\n        <div class=\"section-title\">Your current details</div>\n        <div class=\"info-box\">\n          <div class=\"info-row\">\n            <span class=\"info-label\">Name:</span>\n            <span class=\"info-value\">\n              {{ $json.name }} {{ $json.surname }}\n            </span>\n          </div>\n          <div class=\"info-row\">\n            <span class=\"info-label\">Email:</span>\n            <span class=\"info-value\">{{ $json.email }}</span>\n          </div>\n          <div class=\"info-row\">\n            <span class=\"info-label\">Preferred contact time:</span>\n            <span class=\"info-value\">{{ $json.contactTimePreference }}</span>\n          </div>\n        </div>\n\n        <!-- LATEST CHANGE (per gli update, riempito da changeSummary) -->\n        <div class=\"section-title\">Latest update</div>\n        <div class=\"info-box\">\n          <p style=\"margin: 0; font-size: 13px; line-height: 1.6;\">\n            {{ $json.emailLatestUpdateHtml }}\n          </p>\n        </div>\n\n        <!-- AI ENCOURAGEMENT -->\n        <div class=\"section-title\">A note from your coach</div>\n        <div class=\"info-box\">\n          <p style=\"margin: 0; font-size: 13px; line-height: 1.6;\">\n            {{ $json.encouragementMessage }}\n          </p>\n        </div>\n\n        <!-- CTA -->\n        <div class=\"cta-wrapper\">\n          <a href=\"https://your-booking-link.com\" class=\"cta-button\">\n            Book your first call\n          </a>\n          <div class=\"badge-row\">\n            <span class=\"badge-pill\">No excuses</span>\n            <span class=\"badge-pill\">New routine</span>\n            <span class=\"badge-pill\">Progress &gt; perfection</span>\n          </div>\n        </div>\n\n        <div class=\"divider\"></div>\n\n        <p class=\"small\">\n          If anything feels unclear (links, access, questions), just reply to this email and I’ll get back to you as soon as possible.\n        </p>\n\n        <p class=\"small\">\n          Talk soon,<br />\n          <span class=\"highlight\">Your Coach</span><br />\n          IronFlow Coaching\n        </p>\n      </div>\n    </div>\n  </div>\n</body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2592,
+        112
+      ],
+      "id": "556c0f88-3549-4f74-bd88-833bf146ee7a",
+      "name": "SendWelcomeMessageToClient",
+      "webhookId": "9b62146e-4cb8-4f8c-885d-9934f2682dd8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8auoCay1Fz4xa5r8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8039873794",
+        "text": "={{ $json.telegramMessage }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2416,
+        112
+      ],
+      "id": "a5ae269b-efac-49b9-9510-147e9608e374",
+      "name": "SendMessageToCoach",
+      "webhookId": "da6fb4ff-5fcd-49aa-b306-f2b7d073969d",
+      "credentials": {
+        "telegramApi": {
+          "id": "efSHXns7jbqmTluR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1200,
+        -224
+      ],
+      "id": "c3dc07e8-3594-4b49-967e-20a28f44940c",
+      "name": "Merge",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const content =\n  $json?.output?.[0]?.content?.[0]?.text?.trim() ??\n  'You just took the first step — now we’ll build strength and habits one session at a time.';\n\nconst original = $node['NormalizeRecivedData'].json;\n\nreturn {\n  json: {\n    ...original,\n    encouragementMessage: content,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        112
+      ],
+      "id": "9588a044-b451-4512-a8e5-18bc6b71e8c3",
+      "name": "NormalizeAIResponse"
     },
     {
       "parameters": {
@@ -137,6 +474,16 @@
               "removed": false
             },
             {
+              "id": "LastChangeSummary",
+              "displayName": "LastChangeSummary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
               "id": "Timestamp",
               "displayName": "Timestamp",
               "required": false,
@@ -154,10 +501,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        688,
-        16
+        1376,
+        -224
       ],
-      "id": "ba5e543c-f83e-4a0a-821e-edcd620a0e32",
+      "id": "36e87b91-7b1b-4c48-ba4f-be950d6ed217",
       "name": "SaveNewClient",
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -168,102 +515,240 @@
     },
     {
       "parameters": {
-        "modelId": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        528,
+        304
+      ],
+      "id": "6e7f1a8b-fb12-4c44-ac23-128b57ab80b9",
+      "name": "MergeExistingClient"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
           "__rl": true,
-          "value": "gpt-4.1-mini",
+          "value": "1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g",
           "mode": "list",
-          "cachedResultName": "GPT-4.1-MINI"
+          "cachedResultName": "Clients",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit?usp=drivesdk"
         },
-        "responses": {
-          "values": [
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "RawData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('BuildChangeSummaryInput').item.json.name }} {{ $('BuildChangeSummaryInput').item.json.surname }}",
+            "Email": "={{ $('BuildChangeSummaryInput').item.json.email }}",
+            "DurationInMonths": "={{ $('BuildChangeSummaryInput').item.json.servicePack.match(/\\d+\\.?\\d*/g)[0] }}",
+            "WeeklyWorkouts": "={{ $('BuildChangeSummaryInput').item.json.weeklyWorkouts }}",
+            "ContactPreferences": "={{ $('BuildChangeSummaryInput').item.json.contactTimePreference }}",
+            "Timestamp": "={{ $('BuildChangeSummaryInput').item.json.timestamp }}",
+            "Goal": "={{ $('BuildChangeSummaryInput').item.json.mainGoal.toString() }}",
+            "ClientId": "={{ $('BuildChangeSummaryInput').item.json.clientId }}",
+            "Status": "UPDATED_LEAD",
+            "FolderUrl": "={{ $node[\"FindExistingClient\"].json[\"FolderUrl\"] }}",
+            "row_number": "={{ $json.row_number || $node[\"FindExistingClient\"].json[\"row_number\"] }}\n",
+            "LastChangeSummary": "={{ $json.output[0].content[0].text }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
             {
-              "role": "system",
-              "content": "You are an online fitness coach. \nYour style is clear, direct and motivating, not cringe or overly dramatic.\nWrite short, specific encouragement messages based on the client’s goal, plan duration and weekly workouts.\nUse simple, conversational English.\nMax 3–4 sentences."
+              "id": "ClientId",
+              "displayName": "ClientId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
             },
             {
-              "content": "=Client name: {{$json[\"name\"]}} {{$json[\"surname\"]}}\nPlan duration (months): {{$json[\"servicePack\"]}}\nWeekly workouts: {{$json[\"weeklyWorkouts\"]}}\nMain goal: {{$json[\"mainGoal\"]}}\n\nWrite a short encouragement message to include in a welcome email.\nSpeak directly to the client (use \"you\"), and reference the goal and plan intensity."
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DurationInMonths",
+              "displayName": "DurationInMonths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "WeeklyWorkouts",
+              "displayName": "WeeklyWorkouts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ContactPreferences",
+              "displayName": "ContactPreferences",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Goal",
+              "displayName": "Goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "FolderUrl",
+              "displayName": "FolderUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LastChangeSummary",
+              "displayName": "LastChangeSummary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
             }
-          ]
-        },
-        "builtInTools": {
-          "codeInterpreter": true
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         },
         "options": {}
       },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 2.1,
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "position": [
-        208,
-        320
+        1392,
+        304
       ],
-      "id": "1b77d6a7-0801-4e79-ada6-08095b23d0c0",
-      "name": "Message a model",
+      "id": "7845792b-2f43-4286-868b-948e7e6dee54",
+      "name": "UpdateExistingClient",
       "credentials": {
-        "openAiApi": {
-          "id": "InhgJnHeOc3d3Hh1",
-          "name": "OpenAi account"
+        "googleSheetsOAuth2Api": {
+          "id": "LGQ6Uu0fRKo7IpdW",
+          "name": "Google Sheets account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const content =\n  $json?.output?.[0]?.content?.[0]?.text?.trim() ??\n  'You just took the first step — now we’ll build strength and habits one session at a time.';\n\nconst original = $node['NormalizeRecivedData'].json;\n\nreturn {\n  json: {\n    ...original,\n    encouragementMessage: content,\n  },\n};\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        576,
-        320
-      ],
-      "id": "8fe23163-ad16-4691-9226-9fe0677a16d6",
-      "name": "NormalizeAIResponse"
-    },
-    {
-      "parameters": {
-        "jsCode": "const input = $json.body;\n\nconst errors = [];\n\n// Helper per campi stringa obbligatori\nfunction requireString(fieldName) {\n  const raw = input[fieldName];\n  if (typeof raw !== 'string' || !raw.trim()) {\n    errors.push(`Missing or empty: ${fieldName}`);\n    return null;\n  }\n  return raw.trim();\n}\n\n// Campi base\nconst name = requireString('name');\nconst surname = requireString('surname');\nconst email = requireString('email');\nconst mainGoal = requireString('mainGoal');\nconst contactTimePreference = requireString('contactTimePreference');\n\n// Email minima decente\nif (email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) {\n  errors.push('Invalid email format');\n}\n\n// servicePack limitato a valori validi\nconst allowedPacks = ['1month', '3months', '6months', '6months', '12months'];\nconst servicePack = input.servicePack;\nif (!allowedPacks.includes(servicePack)) {\n  errors.push(`Invalid servicePack: ${servicePack}`);\n}\n\n// weeklyWorkouts tra 1 e 14\nconst weekly = Number(input.weeklyWorkouts);\nif (!Number.isFinite(weekly) || weekly <= 0 || weekly > 14) {\n  errors.push(`weeklyWorkouts must be between 1 and 14 (got ${input.weeklyWorkouts})`);\n}\n\n// timestamp / clientId\nconst timestamp = input.timestamp || new Date().toISOString();\nconst safeName = (name || 'unknown').toLowerCase().replace(/\\s+/g, '_');\nconst safeSurname = (surname || '').toLowerCase().replace(/\\s+/g, '_');\nconst clientId = `${timestamp.slice(0, 10)}-${safeName}_${safeSurname}`;\n\n// Se ci sono errori → item “rotto”\nif (errors.length > 0) {\n  return {\n    json: {\n      isValid: false,\n      validationErrors: errors,\n      timestamp,\n      rawPayload: input,   // mi tengo tutto l'input grezzo\n    },\n  };\n}\n\n// Se è tutto ok → item normale\nreturn {\n  json: {\n    clientId,\n    name,\n    surname,\n    email,\n    servicePack,\n    weeklyWorkouts: weekly,\n    mainGoal,\n    contactTimePreference,\n    timestamp,\n    isValid: true,\n    validationErrors: [],\n  },\n};\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -336,
-        336
-      ],
-      "id": "2fc7a8fd-3dd1-400c-bb2d-f4ebe32b4927",
-      "name": "NormalizeRecivedData"
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "resource": "folder",
-        "name": "={{ $json.clientId }}",
-        "driveId": {
-          "__rl": true,
-          "mode": "list",
-          "value": "My Drive"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e557c0bb-b4ae-4601-9f4b-1bad5cabdd6a",
+              "leftValue": "={{ $json }}\n",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "7ff3214a-bbfc-4b38-bcd4-b487016bf930",
+              "leftValue": "={{ $json[\"row_number\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
         },
-        "folderId": {
-          "__rl": true,
-          "value": "1kgUmRMA-G2feiPENaowauVHUbE6XwJgb",
-          "mode": "list",
-          "cachedResultName": "ClientOnboardingCoach",
-          "cachedResultUrl": "https://drive.google.com/drive/folders/1kgUmRMA-G2feiPENaowauVHUbE6XwJgb"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
-      "position": [
-        96,
-        -176
-      ],
-      "id": "c18c3d48-9f20-4335-a5a0-a9f4278045c4",
-      "name": "CreateNewFolder",
-      "credentials": {
-        "googleApi": {
-          "id": "aQ7sPDCB3XY00DVo",
-          "name": "Google Drive account"
+        "options": {
+          "ignoreCase": false
         }
-      }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        192,
+        128
+      ],
+      "id": "375866f7-63d7-4e01-bb54-b4a8777077af",
+      "name": "IsNewClient",
+      "alwaysOutputData": false,
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -274,97 +759,11 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        496,
-        16
+        2016,
+        -32
       ],
-      "id": "8a5b5d90-2a64-4589-bb19-65bc4885251f",
-      "name": "Merge"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "fe187df0-0980-4ce8-95ae-7dba5fda3024",
-              "name": "folderId",
-              "value": "={{ $json.id }}",
-              "type": "string"
-            },
-            {
-              "id": "7add87ae-973d-4ca4-88d2-d80628f19d0f",
-              "name": "folderName",
-              "value": "={{ $json.name }}",
-              "type": "string"
-            },
-            {
-              "id": "edbfa7da-8868-4ecb-ad92-397b7af8f6f1",
-              "name": "folderUrl",
-              "value": "=https://drive.google.com/drive/folders/{{$json[\"id\"]}}",
-              "type": "string"
-            },
-            {
-              "id": "3db2e88d-8d39-4080-8433-88419d8d47ba",
-              "name": "mimeType",
-              "value": "={{ $json.mimeType }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        352,
-        -176
-      ],
-      "id": "a2a23b57-a3d0-459d-aca3-52b9019be9b0",
-      "name": "FixDriveFields"
-    },
-    {
-      "parameters": {
-        "chatId": "8039873794",
-        "text": "=🔥 New client onboarded!\n\n👤 Name: {{$json[\"name\"]}} {{$json[\"surname\"]}}\n📧 Email: {{$json[\"email\"]}}\n\n🎯 Goal:\n{{$json[\"mainGoal\"]}}\n\n📆 Plan: {{$json[\"servicePack\"]}} – {{$json[\"weeklyWorkouts\"]}} workouts/week\n⏰ Preferred contact time: {{$json[\"contactTimePreference\"]}}\n\n📂 Client folder:\n{{$json[\"folderUrl\"]}}\n\n🤖 AI coach note:\n\"{{$json[\"encouragementMessage\"]}}\"\n",
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        832,
-        160
-      ],
-      "id": "bb1358ec-057e-42bf-aaab-11ddf2884509",
-      "name": "SendMessageToCoach",
-      "webhookId": "14b17ff5-34c1-47c1-a112-c016138646f0",
-      "credentials": {
-        "telegramApi": {
-          "id": "efSHXns7jbqmTluR",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "={{ $json.email }}",
-        "subject": "=Welcome {{ $json.name }} to the team!",
-        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Welcome Email - Gym Coaching</title>\n  <style>\n    body {\n      margin: 0;\n      padding: 0;\n      background-color: #0d0d0f;\n      font-family: Arial, Helvetica, sans-serif;\n      color: #f5f5f5;\n    }\n    .wrapper {\n      width: 100%;\n      background-color: #0d0d0f;\n      padding: 24px 0;\n    }\n    .container {\n      max-width: 640px;\n      margin: 0 auto;\n      background: linear-gradient(135deg, #111118 0%, #151520 50%, #191924 100%);\n      border-radius: 12px;\n      border: 1px solid #262633;\n      overflow: hidden;\n    }\n    .header {\n      padding: 24px 32px 16px;\n      text-align: center;\n      border-bottom: 1px solid #262633;\n      background: radial-gradient(circle at top left, #ff7a00 0, #111118 55%);\n    }\n    .brand {\n      font-size: 22px;\n      font-weight: 700;\n      letter-spacing: 0.08em;\n      text-transform: uppercase;\n      color: #ffffff;\n    }\n    .brand span {\n      color: #ff7a00;\n    }\n    .subtitle {\n      margin-top: 8px;\n      font-size: 13px;\n      text-transform: uppercase;\n      letter-spacing: 0.18em;\n      color: #f5f5f5cc;\n    }\n    .content {\n      padding: 24px 32px 32px;\n    }\n    h1 {\n      font-size: 22px;\n      margin: 0 0 12px;\n      color: #ffffff;\n    }\n    p {\n      font-size: 14px;\n      line-height: 1.6;\n      margin: 0 0 12px;\n      color: #e0e0e0;\n    }\n    .highlight {\n      color: #ff7a00;\n      font-weight: 600;\n    }\n    .section-title {\n      margin-top: 20px;\n      font-size: 14px;\n      font-weight: 700;\n      text-transform: uppercase;\n      letter-spacing: 0.12em;\n      color: #ff7a00;\n    }\n    .info-box {\n      margin-top: 8px;\n      padding: 12px 14px;\n      border-radius: 8px;\n      background: rgba(15, 15, 24, 0.9);\n      border: 1px solid #262633;\n      font-size: 13px;\n    }\n    .info-row {\n      margin: 4px 0;\n    }\n    .info-label {\n      font-weight: 600;\n      color: #f5f5f5;\n    }\n    .info-value {\n      color: #cfcfcf;\n    }\n    .cta-wrapper {\n      margin-top: 24px;\n      text-align: center;\n    }\n    .cta-button {\n      display: inline-block;\n      padding: 12px 28px;\n      background: #ff7a00;\n      color: #0b0b10 !important;\n      text-decoration: none;\n      font-weight: 700;\n      font-size: 14px;\n      border-radius: 999px;\n      text-transform: uppercase;\n      letter-spacing: 0.14em;\n    }\n    .cta-button:hover {\n      opacity: 0.9;\n    }\n    .divider {\n      height: 1px;\n      background: #262633;\n      margin: 24px 0 16px;\n    }\n    .small {\n      font-size: 12px;\n      color: #9e9eaa;\n    }\n    .badge-row {\n      margin-top: 8px;\n      font-size: 11px;\n      letter-spacing: 0.16em;\n      text-transform: uppercase;\n      color: #bbbbc7;\n    }\n    .badge-pill {\n      display: inline-block;\n      padding: 4px 10px;\n      border-radius: 999px;\n      border: 1px solid #ff7a00;\n      color: #ff7a00;\n      font-size: 11px;\n      margin-right: 6px;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"wrapper\">\n    <div class=\"container\">\n      <!-- HEADER -->\n      <div class=\"header\">\n        <div class=\"brand\">\n          <span>Iron</span>Flow Coaching\n        </div>\n        <div class=\"subtitle\">\n          Strength · Discipline · Consistency\n        </div>\n      </div>\n\n      <!-- CONTENT -->\n      <div class=\"content\">\n        <h1>Welcome to your new coaching journey, {{$json[\"name\"]}} 🔥</h1>\n\n        <p>\n          From now on you’re not training alone anymore: we’ll follow a structured plan,\n          with clear goals and a program tailored to you.\n        </p>\n\n        <p>\n          You’ve chosen the\n          <span class=\"highlight\">{{$json[\"servicePack\"]}}</span>\n          package with\n          <span class=\"highlight\">{{$json[\"weeklyWorkouts\"]}} workouts per week</span>.<br />\n        </p>\n\n        <!-- CLIENT INFO -->\n        <div class=\"section-title\">Your starting details</div>\n        <div class=\"info-box\">\n          <div class=\"info-row\">\n            <span class=\"info-label\">Name:</span>\n            <span class=\"info-value\">\n              {{$json[\"name\"]}} {{$json[\"surname\"]}}\n            </span>\n          </div>\n          <div class=\"info-row\">\n            <span class=\"info-label\">Email:</span>\n            <span class=\"info-value\"> {{$json[\"email\"]}}</span>\n          </div>\n          <div class=\"info-row\">\n            <span class=\"info-label\">Preferred contact time:</span>\n            <span class=\"info-value\"> {{$json[\"contactTimePreference\"]}}</span>\n          </div>\n        </div>\n\n        <!-- NEXT STEPS -->\n        <div class=\"section-title\">Next steps</div>\n        <div class=\"info-box\">\n          <div class=\"info-row\">\n            <span class=\"info-label\">1. Initial questionnaire</span><br />\n            <span class=\"info-value\">\n              You’ll receive a short questionnaire to better understand your habits, nutrition, past injuries\n              and available equipment.\n            </span>\n          </div>\n          <div class=\"info-row\" style=\"margin-top: 10px;\">\n            <span class=\"info-label\">2. Onboarding call</span><br />\n            <span class=\"info-value\">\n              We’ll align on timing, intermediate milestones and how we’ll handle check-ins and feedback.  \n              We’ll use your preferred time window as a reference:\n              <span class=\"highlight\">{{$json[\"contactTimePreference\"]}}</span>.\n            </span>\n          </div>\n          <div class=\"info-row\" style=\"margin-top: 10px;\">\n            <span class=\"info-label\">3. Your custom program</span><br />\n            <span class=\"info-value\">\n              Based on your answers, I’ll create a {{$json[\"weeklyWorkouts\"]}}-sessions-per-week program\n              focused on progression, good technique and real strength gains\n              (yes, including working towards that 100 kg bench).\n            </span>\n          </div>\n        </div>\n\n        <!-- AI ENCOURAGEMENT -->\n        <div class=\"section-title\">A note from your coach</div>\n        <div class=\"info-box\">\n          <p style=\"margin: 0; font-size: 13px; line-height: 1.6;\">\n            {{$json[\"encouragementMessage\"]}}\n          </p>\n        </div>\n\n\n        <!-- CTA -->\n        <div class=\"cta-wrapper\">\n          <a href=\"https://your-booking-link.com\" class=\"cta-button\">\n            Book your first call\n          </a>\n          <div class=\"badge-row\">\n            <span class=\"badge-pill\">No excuses</span>\n            <span class=\"badge-pill\">New routine</span>\n            <span class=\"badge-pill\">Progress &gt; perfection</span>\n          </div>\n        </div>\n\n        <div class=\"divider\"></div>\n\n        <p class=\"small\">\n          If anything feels unclear (links, access, questions), just reply to this email and I’ll get back to you as soon as possible.\n        </p>\n\n        <p class=\"small\">\n          Talk soon,<br />\n          <span class=\"highlight\">Your Coach</span><br />\n          IronFlow Coaching\n        </p>\n      </div>\n    </div>\n  </div>\n</body>\n</html>\n",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        832,
-        320
-      ],
-      "id": "7fdd1a1b-a9af-4398-a950-8650709c061f",
-      "name": "SendWelcomeMessageToClient",
-      "webhookId": "de1f8fbc-cdb7-428a-9581-533c74ae8552",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "8auoCay1Fz4xa5r8",
-          "name": "Gmail account"
-        }
-      }
+      "id": "19be389f-01b0-4006-b37f-882cbe44ee70",
+      "name": "MergeDataForMessage"
     },
     {
       "parameters": {
@@ -395,219 +794,225 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -80,
+        -112,
         336
       ],
-      "id": "2c61ef33-094d-4d22-b6c2-acc301f32aff",
-      "name": "If"
+      "id": "0da91e3e-31d6-43f6-a67e-cbbdc5f7d6db",
+      "name": "IsDataValid"
     },
     {
       "parameters": {
-        "operation": "append",
-        "documentId": {
+        "jsCode": "// Vecchio record dal foglio\nconst oldData = $item(0).$node['FindExistingClient'].json;\n\n// Nuovi dati normalizzati\nconst newData = $item(0).$node['NormalizeRecivedData'].json;\n\nconst FIELD_MAP = [\n  {\n    oldKey: 'DurationInMonths',\n    newKey: 'servicePack',\n    label: 'Plan duration (months)',\n    normalizeOld: v => Number(v),\n    normalizeNew: v => parseInt(String(v).replace(/\\D/g, ''), 10) || null,\n  },\n  {\n    oldKey: 'WeeklyWorkouts',\n    newKey: 'weeklyWorkouts',\n    label: 'Weekly workouts',\n  },\n  {\n    oldKey: 'ContactPreferences',\n    newKey: 'contactTimePreference',\n    label: 'Preferred contact time',\n  },\n  {\n    oldKey: 'Goal',\n    newKey: 'mainGoal',\n    label: 'Main goal',\n  },\n];\n\nconst changes = [];\n\nfor (const field of FIELD_MAP) {\n  let oldValue = oldData[field.oldKey];\n  let newValue = newData[field.newKey];\n\n  if (field.normalizeOld) oldValue = field.normalizeOld(oldValue);\n  if (field.normalizeNew) newValue = field.normalizeNew(newValue);\n\n  // Se uno dei due manca, salta\n  if (oldValue === undefined || newValue === undefined) continue;\n\n  // Confronto \"stringato\" per sicurezza\n  if (String(oldValue) !== String(newValue)) {\n    changes.push(`- ${field.label}: \"${oldValue}\" → \"${newValue}\"`);\n  }\n}\n\nlet diffText;\n\nif (changes.length === 0) {\n  diffText = `The client submitted the form, but no relevant fields changed compared to the previous data.`;\n} else {\n  diffText =\n    `The client updated their plan. Here are the key changes:\\n` +\n    changes.join('\\n');\n}\n\n// Questo è quello che mandi a OpenAI\nconst promptContext = {\n  clientName: `${newData.name} ${newData.surname}`,\n  email: newData.email,\n  changes,\n  diffText,\n};\n\n// Ritorniamo i dati nuovi + il contesto per l'AI\nreturn {\n  json: {\n    ...newData,\n    lastChangeContext: promptContext,\n    lastChangeDiffText: diffText,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        304
+      ],
+      "id": "d5137cc7-11d5-4f8b-986f-652c38649839",
+      "name": "BuildChangeSummaryInput"
+    },
+    {
+      "parameters": {
+        "modelId": {
           "__rl": true,
-          "value": "1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g",
+          "value": "gpt-4o-mini",
           "mode": "list",
-          "cachedResultName": "Clients",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit?usp=drivesdk"
+          "cachedResultName": "GPT-4O-MINI"
         },
-        "sheetName": {
-          "__rl": true,
-          "value": 2012678717,
-          "mode": "list",
-          "cachedResultName": "InvalidData",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BIs2RjLsWtU5WG9b4cnuHiAvU8VQXmF55xWzA_nQ_6g/edit#gid=2012678717"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "rawPayload": "={{JSON.stringify($json[\"rawPayload\"], null, 2).trim()}}",
-            "errors": "={{$json[\"validationErrors\"].join('\\n')}}",
-            "timestamp": "={{ $json.timestamp }}"
-          },
-          "matchingColumns": [],
-          "schema": [
+        "responses": {
+          "values": [
             {
-              "id": "rawPayload",
-              "displayName": "rawPayload",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "role": "system",
+              "content": "You are an assistant helping an online fitness coach summarize client plan changes in 1–2 short sentences. Be concrete and positive."
             },
             {
-              "id": "errors",
-              "displayName": "errors",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "timestamp",
-              "displayName": "timestamp",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "content": "=Client: {{$json.lastChangeContext.clientName}} ({{$json.email}})\n\nChanges:\n{{$json.lastChangeDiffText}}\n\nWrite a short, human-friendly summary of what changed, in English, in 1–2 sentences.\n"
             }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
+          ]
         },
+        "builtInTools": {},
         "options": {}
       },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
       "position": [
-        144,
-        608
+        960,
+        304
       ],
-      "id": "f89f12ab-905c-42b2-a29e-bfe62a34c247",
-      "name": "SaveInvalidLead",
+      "id": "72f25f8c-29fc-440c-8d10-ef306029766b",
+      "name": "GetChangesFromModel",
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "LGQ6Uu0fRKo7IpdW",
-          "name": "Google Sheets account"
+        "openAiApi": {
+          "id": "InhgJnHeOc3d3Hh1",
+          "name": "OpenAi account"
         }
       }
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an online fitness coach. \nYour style is clear, direct and motivating, not cringe or overly dramatic.\nWrite short, specific encouragement messages based on the client’s goal, plan duration and weekly workouts.\nUse simple, conversational English.\nMax 3–4 sentences."
+            },
+            {
+              "content": "=Client name: {{$json[\"name\"]}} {{$json[\"surname\"]}}\nPlan duration (months): {{$json[\"servicePack\"]}}\nWeekly workouts: {{$json[\"weeklyWorkouts\"]}}\nMain goal: {{$json[\"mainGoal\"]}}\n\nWrite a short encouragement message to include in a welcome email.\nSpeak directly to the client (use \"you\"), and reference the goal and plan intensity."
+            }
+          ]
+        },
+        "builtInTools": {
+          "codeInterpreter": true
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
       "position": [
-        624,
-        784
+        1552,
+        112
       ],
-      "id": "aac6ace9-8718-47b1-9064-0611ca880148",
-      "name": "BadEnding"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1072,
-        160
-      ],
-      "id": "19d11bd3-fcd0-4175-a0a6-d3a010e01fd4",
-      "name": "GoodEnding"
+      "id": "0a59e0ff-af36-4e3b-9c7c-b867c11a9b1b",
+      "name": "GetCustomMessageFromModel",
+      "credentials": {
+        "openAiApi": {
+          "id": "InhgJnHeOc3d3Hh1",
+          "name": "OpenAi account"
+        }
+      }
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"status\": \"ok\",\n  \"message\": \"Onboarding workflow started.\",\n  \"clientId\": \"{{$json[\"ClientId\"]}}\"\n}\n",
-        "options": {}
+        "jsCode": "const data = $json;\n\n// Consideriamo \"update\" se esiste un riepilogo modifiche non vuoto\nconst hasUpdate =\n  data.LastChangeSummary &&\n  typeof data.LastChangeSummary === 'string' &&\n  data.LastChangeSummary.trim() !== '';\n\nconst isNewClient = !hasUpdate;\n\n// Campi di utilità\nconst name = data.Name || data.name || 'Client';\nconst email = data.Email || data.email || '';\nconst goal = data.Goal || data.mainGoal || 'Not specified';\nconst months = data.DurationInMonths || data.durationInMonths || '?';\nconst workouts = data.WeeklyWorkouts || data.weeklyWorkouts || '?';\nconst contactTime =\n  data.ContactPreferences ||\n  data.contactTimePreference ||\n  'Not specified';\nconst folderUrl = data.FolderUrl || data.folderUrl || '—';\nconst lastChange = data.LastChangeSummary || '';\nconst aiNote =\n  data.encouragementMessage ||\n  'AI encouragement message not available yet.';\n\n// ---------------- EMAIL TEXTS ----------------\nlet emailIntro;\nlet emailLatestUpdateHtml;\n\nif (isNewClient) {\n  // Nuovo cliente\n  emailIntro = `Welcome to your new coaching journey, ${name}! 🔥`;\n\n  emailLatestUpdateHtml = `\n    <p>You’ve just started your plan – from now on every change in your plan\n    will be tracked here.</p>\n  `;\n} else {\n  // Cliente esistente aggiornato\n  emailIntro = `Hey ${name}, quick update from your coach.`;\n\n  emailLatestUpdateHtml = `\n    <p>${lastChange}</p>\n  `;\n}\n\n// ---------------- TELEGRAM MESSAGE ----------------\nlet telegramMessage;\n\nif (isNewClient) {\n  // NUOVO CLIENTE\n  telegramMessage =\n`🆕 New coaching client registered\n\n👤 Name: ${name}\n📧 Email: ${email}\n\n🎯 Goal:\n${goal}\n\n📆 Plan: ${months} months – ${workouts} workouts/week\n⏰ Preferred contact time: ${contactTime}\n\n📂 Client folder:\n${folderUrl}\n\n🤖 AI coach note:\n${aiNote}`;\n} else {\n  // CLIENTE ESISTENTE AGGIORNATO\n  telegramMessage =\n`🔄 Existing client updated\n\n👤 Name: ${name}\n📧 Email: ${email}\n\n🎯 Goal:\n${goal}\n\n📆 Plan: ${months} months – ${workouts} workouts/week\n⏰ Preferred contact time: ${contactTime}\n\n📂 Client folder:\n${folderUrl}\n\n📝 Latest update:\n${lastChange}\n\n🤖 AI coach note:\n${aiNote}`;\n}\n\n// ---------------- OUTPUT ----------------\nreturn {\n  json: {\n    ...data,\n    isNewClient,\n    emailIntro,\n    emailLatestUpdateHtml,\n    telegramMessage,\n  },\n};"
       },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        832,
+        2192,
+        112
+      ],
+      "id": "2d2f6cfd-8e0f-481e-8ea9-72520d320314",
+      "name": "BuildNotificationPayload"
+    },
+    {
+      "parameters": {
+        "content": "## Intake & Validation",
+        "height": 80,
+        "width": 496,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        224
+      ],
+      "id": "77d39a35-1eca-41a9-9e04-9018778e17f1",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Client Routing (New vs Existing)",
+        "height": 80,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        48,
         16
       ],
-      "id": "4be2ee55-290d-48d7-bd81-b886885999c2",
-      "name": "SendOKResponse"
+      "id": "1ab5b723-64cc-4f9f-946d-7f863ef01e0f",
+      "name": "Sticky Note1"
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"Invalid data.\"\n}\n",
+        "content": "## Persistence Layer (Sheets + Drive)",
+        "height": 80,
+        "width": 256,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1216,
+        -448
+      ],
+      "id": "7d351777-9a10-4c2c-b912-7cd591ff70f6",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## AI & Messaging (Coach + Client)",
+        "height": 80,
+        "width": 256,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        336
+      ],
+      "id": "4b7232ce-5644-464f-b276-25123c022ae5",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Error Handling",
+        "height": 80,
+        "width": 256,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        256,
+        512
+      ],
+      "id": "87fe5ed3-33d9-4e7e-a77f-2b8becdcd8be",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client-onboarding-coach/send-request",
+        "responseMode": "responseNode",
         "options": {}
       },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
       "position": [
-        400,
-        608
+        -608,
+        336
       ],
-      "id": "55ea34db-3d99-4276-ad5a-4f262943e4e2",
-      "name": "SendKOResponse"
-    },
-    {
-      "parameters": {
-        "chatId": "8039873794",
-        "text": "=⚠️ New onboarding failed validation\n\nErrors:\n{{$json[\"validationErrors\"].join('\\n')}}\n\nRaw payload:\n{{JSON.stringify($json[\"rawPayload\"], null, 2)}}\n",
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        144,
-        784
-      ],
-      "id": "c84bb554-8b68-4376-a6ee-653f5933ff87",
-      "name": "SendErrorMessageToCoach",
-      "webhookId": "14b17ff5-34c1-47c1-a112-c016138646f0",
-      "credentials": {
-        "telegramApi": {
-          "id": "efSHXns7jbqmTluR",
-          "name": "Telegram account"
-        }
-      }
+      "id": "b4fb70e3-c1ac-4bdc-8d22-db3b7bb3a47e",
+      "name": "Intake form",
+      "webhookId": "1e69748b-c5c0-4b3d-998d-2e5dbc069cb6"
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "NormalizeRecivedData",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SaveNewClient": {
-      "main": [
-        [
-          {
-            "node": "SendOKResponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Message a model": {
-      "main": [
-        [
-          {
-            "node": "NormalizeAIResponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "NormalizeAIResponse": {
-      "main": [
-        [
-          {
-            "node": "SendMessageToCoach",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "SendWelcomeMessageToClient",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "NormalizeRecivedData": {
       "main": [
         [
           {
-            "node": "If",
+            "node": "IsDataValid",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -617,17 +1022,6 @@
         [
           {
             "node": "FixDriveFields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge": {
-      "main": [
-        [
-          {
-            "node": "SaveNewClient",
             "type": "main",
             "index": 0
           }
@@ -645,77 +1039,11 @@
         ]
       ]
     },
-    "SendMessageToCoach": {
-      "main": [
-        [
-          {
-            "node": "GoodEnding",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 1
-          },
-          {
-            "node": "CreateNewFolder",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Message a model",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "SaveInvalidLead",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "SendErrorMessageToCoach",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "SaveInvalidLead": {
       "main": [
         [
           {
             "node": "SendKOResponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SendWelcomeMessageToClient": {
-      "main": [
-        [
-          {
-            "node": "GoodEnding",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SendOKResponse": {
-      "main": [
-        [
-          {
-            "node": "GoodEnding",
             "type": "main",
             "index": 0
           }
@@ -743,17 +1071,248 @@
           }
         ]
       ]
+    },
+    "FindExistingClient": {
+      "main": [
+        [
+          {
+            "node": "IsNewClient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendOKResponse": {
+      "main": [
+        [
+          {
+            "node": "GoodEnding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendWelcomeMessageToClient": {
+      "main": [
+        [
+          {
+            "node": "GoodEnding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendMessageToCoach": {
+      "main": [
+        [
+          {
+            "node": "GoodEnding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "SaveNewClient",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MergeDataForMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NormalizeAIResponse": {
+      "main": [
+        [
+          {
+            "node": "MergeDataForMessage",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "BuildNotificationPayload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SaveNewClient": {
+      "main": [
+        [
+          {
+            "node": "SendOKResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MergeExistingClient": {
+      "main": [
+        [
+          {
+            "node": "BuildChangeSummaryInput",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UpdateExistingClient": {
+      "main": [
+        [
+          {
+            "node": "GetCustomMessageFromModel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IsNewClient": {
+      "main": [
+        [
+          {
+            "node": "CreateNewFolder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GetCustomMessageFromModel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MergeExistingClient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MergeDataForMessage": {
+      "main": [
+        [
+          {
+            "node": "BuildNotificationPayload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IsDataValid": {
+      "main": [
+        [
+          {
+            "node": "FindExistingClient",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MergeExistingClient",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "SaveInvalidLead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SendErrorMessageToCoach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildChangeSummaryInput": {
+      "main": [
+        [
+          {
+            "node": "GetChangesFromModel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetChangesFromModel": {
+      "main": [
+        [
+          {
+            "node": "UpdateExistingClient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetCustomMessageFromModel": {
+      "main": [
+        [
+          {
+            "node": "NormalizeAIResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildNotificationPayload": {
+      "main": [
+        [
+          {
+            "node": "SendMessageToCoach",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SendWelcomeMessageToClient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intake form": {
+      "main": [
+        [
+          {
+            "node": "NormalizeRecivedData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "2c422fa4-8e93-442f-afde-04e46dfd28b7",
+  "versionId": "6a9b1ece-c914-4b8d-87e9-16dae29f653b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "7fbf8787f5e12ab0c380c144a4110bf476b28a502892aba090a04fccf3c49d3e"
   },
-  "id": "72eGSymVaLQtHfjB",
+  "id": "A6wOzYmHNJkkZWRA",
   "tags": []
 }

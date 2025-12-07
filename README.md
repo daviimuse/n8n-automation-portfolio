@@ -37,3 +37,7 @@ Each workflow folder contains:
 - `*.json` → n8n export
 - `README.md` → explanation, inputs/outputs, business use case
 - `screenshots/` → n8n canvas + example results
+
+## Changelog
+
+All notable changes are documented in the [CHANGELOG](./CHANGELOG.md).
